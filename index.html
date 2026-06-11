@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Workout Coach</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0a0f1a;
+    color: #c8dff0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; flex: 1; height: 100vh; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px; flex-shrink: 0;
+    background: #0d1e30;
+    border-right: 1px solid #1e3a55;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-header {
+    padding: 18px 14px 10px;
+    border-bottom: 1px solid #1e3a55;
+  }
+  .sidebar-header h2 { font-size: 13px; color: #4a9adc; text-transform: uppercase; letter-spacing: .08em; }
+  .sidebar-header p  { font-size: 11px; color: #3a6a8a; margin-top: 2px; }
+
+  .client-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .client-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; cursor: pointer; font-size: 13px;
+    border-left: 3px solid transparent;
+    transition: all .12s;
+  }
+  .client-item:hover  { background: #1a2e45; }
+  .client-item.active { background: #1a2e45; border-left-color: #4a9adc; color: #7dd8ff; }
+  .client-item .del-btn {
+    background: none; border: none; color: #3a5a7a; cursor: pointer;
+    font-size: 14px; line-height: 1; padding: 2px 4px; border-radius: 4px;
+    opacity: 0; transition: opacity .1s;
+  }
+  .client-item:hover .del-btn { opacity: 1; }
+  .client-item .del-btn:hover { color: #e05050; background: rgba(224,80,80,.12); }
+
+  .add-client-btn {
+    margin: 10px 10px 14px;
+    padding: 9px; border-radius: 9px;
+    background: #0d2a45; border: 1px dashed #2d5a7a;
+    color: #4a9adc; font-size: 12px; font-weight: 600;
+    cursor: pointer; width: calc(100% - 20px); text-align: center;
+    transition: all .12s;
+  }
+  .add-client-btn:hover { background: #1a3d60; border-color: #4a9adc; }
+
+  /* ── Main area ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  .topbar {
+    background: #0d1e30; border-bottom: 1px solid #1e3a55;
+    padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar h1 { font-size: 18px; color: #f0f8ff; font-weight: 700; }
+  .topbar .sub { font-size: 11px; color: #4a7a9a; margin-top: 2px; }
+
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  .btn {
+    padding: 8px 16px; border-radius: 8px; border: none;
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all .12s;
+  }
+  .btn-primary { background: #1a6aaa; color: #fff; }
+  .btn-primary:hover { background: #2280cc; }
+  .btn-success { background: #1a7a4a; color: #fff; }
+  .btn-success:hover { background: #1d9e60; }
+  .btn-danger  { background: #7a1a1a; color: #ffaaaa; }
+  .btn-danger:hover  { background: #aa2222; }
+  .btn-ghost  { background: none; border: 1px solid #2d4a6a; color: #8bbdd8; }
+  .btn-ghost:hover  { background: #1a2e45; }
+
+  .content { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* ── Empty state ── */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; gap: 12px; color: #2d4a6a;
+  }
+  .empty-state .icon { font-size: 48px; }
+  .empty-state h3 { font-size: 16px; color: #3d6a8a; }
+  .empty-state p  { font-size: 12px; text-align: center; max-width: 260px; line-height: 1.5; }
+
+  /* ── Client info bar ── */
+  .client-info-bar {
+    background: #0d1e30; border: 1px solid #1e3a55; border-radius: 12px;
+    padding: 14px 16px; margin-bottom: 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .client-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: linear-gradient(135deg, #1a3d60, #0d2a45);
+    border: 2px solid #2d5a8a;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: #5adb9a; flex-shrink: 0;
+  }
+  .client-info-bar h2 { font-size: 16px; color: #f0f8ff; font-weight: 700; }
+  .client-info-bar p  { font-size: 11px; color: #4a7a9a; margin-top: 2px; }
+  .client-info-bar .spacer { flex: 1; }
+
+  /* ── Week plan ── */
+  .week-plan { display: flex; flex-direction: column; gap: 10px; }
+
+  .day-card {
+    background: #0d1e30; border: 1px solid #1e3a55; border-radius: 12px;
+    overflow: hidden;
+  }
+  .day-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; cursor: pointer;
+    background: #0f2238;
+    border-bottom: 1px solid #1e3a55;
+    transition: background .12s;
+  }
+  .day-header:hover { background: #162d48; }
+  .day-header .day-label { font-size: 12px; font-weight: 700; color: #5adb9a; min-width: 70px; }
+  .day-header .workout-name { font-size: 13px; color: #c8dff0; flex: 1; margin: 0 10px; }
+  .day-header .workout-name input {
+    background: none; border: none; outline: none; color: #c8dff0;
+    font-size: 13px; font-weight: 600; width: 100%;
+    font-family: inherit;
+  }
+  .day-header .workout-name input::placeholder { color: #3a5a7a; }
+  .day-header .day-actions { display: flex; gap: 6px; align-items: center; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer; color: #4a7a9a;
+    font-size: 14px; padding: 3px 6px; border-radius: 5px;
+    transition: all .1s;
+  }
+  .icon-btn:hover { background: #1a2e45; color: #8bbdd8; }
+  .icon-btn.danger:hover { color: #e05050; background: rgba(224,80,80,.12); }
+
+  .day-body { padding: 10px 14px 12px; }
+
+  /* ── Exercise rows ── */
+  .ex-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 0; border-bottom: 1px solid #0f2238;
+  }
+  .ex-row:last-child { border-bottom: none; }
+  .ex-name-cell { flex: 1; }
+  .ex-name-cell input, .ex-select {
+    background: #0a1828; border: 1px solid #1e3a55; border-radius: 7px;
+    color: #c8dff0; padding: 6px 9px; font-size: 12px; width: 100%;
+    font-family: inherit; outline: none; transition: border-color .1s;
+  }
+  .ex-name-cell input:focus, .ex-select:focus { border-color: #4a9adc; }
+  .sets-cell, .reps-cell { width: 64px; flex-shrink: 0; }
+  .sets-cell input, .reps-cell input {
+    background: #0a1828; border: 1px solid #1e3a55; border-radius: 7px;
+    color: #c8dff0; padding: 6px 6px; font-size: 12px; width: 100%;
+    text-align: center; font-family: inherit; outline: none; transition: border-color .1s;
+  }
+  .sets-cell input:focus, .reps-cell input:focus { border-color: #4a9adc; }
+  .col-label { font-size: 10px; color: #3a5a7a; text-align: center; margin-bottom: 3px; }
+
+  .add-ex-btn {
+    margin-top: 8px; padding: 7px 12px; border-radius: 7px;
+    background: none; border: 1px dashed #2d4a6a; color: #4a7a9a;
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: all .12s;
+  }
+  .add-ex-btn:hover { background: #0f2238; border-color: #4a9adc; color: #4a9adc; }
+  .add-circuit-btn {
+    margin-top: 8px; margin-left: 6px; padding: 7px 12px; border-radius: 7px;
+    background: none; border: 1px dashed #3a5a2a; color: #6a9a4a;
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: all .12s;
+  }
+  .add-circuit-btn:hover { background: #0f1f0a; border-color: #6a9a4a; color: #8aba6a; }
+
+  .circuit-block {
+    margin-top: 10px; border: 1px solid #2a4a1a; border-radius: 8px;
+    background: #0a1410; padding: 8px 10px;
+  }
+  .circuit-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .circuit-label {
+    font-size: 10px; font-weight: 700; color: #6a9a4a; text-transform: uppercase;
+    letter-spacing: .06em; white-space: nowrap;
+  }
+  .circuit-name-input {
+    background: transparent; border: none; border-bottom: 1px solid #2a4a1a;
+    color: #a0c080; font-size: 11px; padding: 2px 4px; outline: none;
+    font-family: inherit; flex: 1; min-width: 0;
+  }
+  .circuit-name-input:focus { border-bottom-color: #6a9a4a; }
+  .circuit-name-input::placeholder { color: #3a5a2a; }
+
+  .circuit-ex-list {
+    position: relative;
+    margin-left: 8px;
+    padding-left: 14px;
+  }
+  .circuit-ex-list .ex-row { position: relative; }
+
+  /* middle rows: full-height vertical line */
+  .circuit-ex-list .ex-row::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 0; bottom: 0;
+    width: 0;
+    border-left: 2px solid #3a6a1a;
+  }
+  /* middle rows: horizontal tick at midpoint */
+  .circuit-ex-list .ex-row::after {
+    content: '';
+    position: absolute;
+    left: -13px;
+    top: calc(50% - 1px);
+    width: 13px; height: 2px;
+    background: #3a6a1a;
+  }
+
+  /* first row: L-shape, vertical arm goes down from midpoint */
+  .circuit-ex-list .ex-row:first-child::before {
+    top: 50%; bottom: 0;
+    width: 12px;
+    border-top: 2px solid #3a6a1a;
+    border-top-left-radius: 6px;
+  }
+  .circuit-ex-list .ex-row:first-child::after { display: none; }
+
+  /* last row: L-shape, vertical arm goes up to midpoint */
+  .circuit-ex-list .ex-row:last-child::before {
+    top: 0; bottom: 50%;
+    width: 12px;
+    border-bottom: 2px solid #3a6a1a;
+    border-bottom-left-radius: 6px;
+  }
+  .circuit-ex-list .ex-row:last-child::after { display: none; }
+
+  /* single row: just the top L (no downward arm) */
+  .circuit-ex-list .ex-row:first-child:last-child::before {
+    top: 50%; bottom: 50%;
+    width: 12px;
+    border-top: 2px solid #3a6a1a;
+    border-bottom: none;
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 0;
+  }
+
+  .rest-day-label {
+    font-size: 12px; color: #2d4a6a; padding: 8px 0; font-style: italic;
+  }
+
+  /* ── Date picker strip ── */
+  .date-strip {
+    display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;
+  }
+  .date-chip {
+    padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    border: 1px solid #1e3a55; background: #0d1e30; color: #4a7a9a;
+    cursor: pointer; transition: all .12s;
+  }
+  .date-chip:hover  { border-color: #4a9adc; color: #7dd8ff; }
+  .date-chip.active { background: #1a3d60; border-color: #4a9adc; color: #7dd8ff; }
+
+  /* ── Modal ── */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal {
+    background: #0d1e30; border: 1px solid #2d5a8a;
+    border-radius: 14px; padding: 24px; width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.6);
+  }
+  .modal h3 { font-size: 15px; color: #f0f8ff; margin-bottom: 16px; }
+  .modal label { font-size: 11px; color: #4a7a9a; display: block; margin-bottom: 4px; margin-top: 12px; }
+  .modal input, .modal textarea {
+    width: 100%; background: #0a1828; border: 1px solid #1e3a55;
+    border-radius: 8px; color: #c8dff0; padding: 9px 12px;
+    font-size: 13px; font-family: inherit; outline: none;
+    transition: border-color .1s;
+  }
+  .modal input:focus, .modal textarea:focus { border-color: #4a9adc; }
+  .modal textarea { resize: vertical; min-height: 60px; }
+
+  /* ── Calendar modal ── */
+  .cal-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-nav { background:none; border:1px solid #2d4a6a; color:#8bbdd8; border-radius:7px; padding:4px 10px; cursor:pointer; font-size:14px; }
+  .cal-nav:hover { border-color:#4a9adc; color:#c8dff0; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-dow  { font-size:9px; font-weight:700; color:#3a5a7a; text-align:center; padding:2px 0 6px; text-transform:uppercase; }
+  .cal-day  { aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:7px; font-size:12px; cursor:pointer; color:#6a8aaa; position:relative; }
+  .cal-day:hover { background:#1a3050; color:#c8dff0; }
+  .cal-day.empty { cursor:default; }
+  .cal-day.empty:hover { background:none; }
+  .cal-day.has-workout { color:#c8dff0; font-weight:700; }
+  .cal-day.has-workout::after { content:''; position:absolute; bottom:3px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:#4a9adc; }
+  .cal-day.in-week { background:#0f2238; color:#c8dff0; border-radius:0; }
+  .cal-day.in-week:first-child, .cal-day.week-start { border-radius:7px 0 0 7px; }
+  .cal-day.in-week:last-child,  .cal-day.week-end   { border-radius:0 7px 7px 0; }
+  .cal-day.today { outline:1px solid #4a9adc; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+
+  /* ── Export panel ── */
+  .export-panel {
+    background: #0d1e30; border: 1px solid #1a6a3a; border-radius: 12px;
+    padding: 16px; margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .export-panel p { font-size: 12px; color: #4a9a6a; line-height: 1.5; }
+  .export-panel strong { color: #5adb9a; }
+
+  /* ── Import section ── */
+  .import-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: 8px;
+    background: none; border: 1px solid #2d4a6a;
+    color: #8bbdd8; font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: all .12s;
+  }
+  .import-label:hover { background: #1a2e45; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0a1520; }
+  ::-webkit-scrollbar-thumb { background: #1e3a55; border-radius: 3px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: #1a4a2a; border: 1px solid #1d9e75; border-radius: 10px;
+    padding: 12px 18px; color: #4adbaa; font-size: 13px; font-weight: 600;
+    box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    animation: fadeInUp .2s ease;
+    z-index: 200;
+  }
+  @keyframes fadeInUp {
+    from { opacity:0; transform: translateY(10px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  .section-title {
+    font-size: 11px; font-weight: 700; color: #3a6a8a;
+    text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 10px; margin-top: 4px;
+  }
+
+  .badge-count {
+    font-size: 10px; background: #1a3d60; color: #4a9adc;
+    border-radius: 20px; padding: 1px 7px; margin-left: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h2>Clients</h2>
+      <p>Select to program workouts</p>
+    </div>
+    <div class="client-list" id="clientList"></div>
+    <button class="add-client-btn" onclick="openAddClient()">+ Add Client</button>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="topTitle">Workout Coach</h1>
+        <div class="sub" id="topSub">Select a client to begin programming</div>
+      </div>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </div>
+    <div class="content" id="mainContent">
+      <div class="empty-state">
+        <div class="icon">🏋️</div>
+        <h3>No client selected</h3>
+        <p>Add a client from the sidebar, then build and export their workout program.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-bg" id="modalBg" style="display:none">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" style="display:none"></div>
+
+<script>
+// ── Storage ──────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'wc_coach_data';
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { clients: [] }; }
+  catch { return { clients: [] }; }
+}
+function save(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+let state = load();
+let activeClientId = null;
+
+// ── Program week ──────────────────────────────────────────────────────────────
+function getMondayOf(d) {
+  const date = new Date(d);
+  const dow = date.getDay();
+  date.setDate(date.getDate() - (dow === 0 ? 6 : dow - 1));
+  date.setHours(0,0,0,0);
+  return date;
+}
+let programWeekStart = getMondayOf(new Date());
+
+function weekKey(d) {
+  return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`;
+}
+
+function emptyWeek() {
+  return DAY_NAMES.map(day => ({ day, workoutName: '', exercises: [], circuits: [] }));
+}
+
+function getWeekProgram(client, d) {
+  const c = client || getClient(); if (!c) return emptyWeek();
+  const key = weekKey(d || programWeekStart);
+  if (!c.weekPrograms) {
+    // migrate legacy c.program into the current week
+    c.weekPrograms = {};
+    if (c.program) c.weekPrograms[key] = c.program;
+  }
+  return c.weekPrograms[key] || null;
+}
+
+function getOrCreateWeekProgram() {
+  const c = getClient(); if (!c) return emptyWeek();
+  const key = weekKey(programWeekStart);
+  if (!c.weekPrograms) {
+    c.weekPrograms = {};
+    if (c.program) c.weekPrograms[key] = c.program;
+  }
+  if (!c.weekPrograms[key]) {
+    c.weekPrograms[key] = emptyWeek();
+  }
+  return c.weekPrograms[key];
+}
+
+function hasWeekData(program) {
+  return program && program.some(d => d.exercises.length || (d.circuits||[]).length || d.workoutName);
+}
+
+function shiftWeek(delta) {
+  const newStart = new Date(programWeekStart);
+  newStart.setDate(programWeekStart.getDate() + delta * 7);
+  const c = getClient();
+  const currentProg = getWeekProgram(c, programWeekStart);
+  const targetProg  = getWeekProgram(c, newStart);
+  const targetKey   = weekKey(newStart);
+  const targetLabel = 'Week of ' + fmtDate(newStart);
+
+  if (hasWeekData(currentProg) && !hasWeekData(targetProg)) {
+    openModal(`
+      <h3>Move to ${targetLabel}?</h3>
+      <p style="font-size:12px;color:#8bbdd8;margin-bottom:18px;line-height:1.6">
+        This week has a program. Copy it to <strong style="color:#c8dff0">${targetLabel}</strong>, or start fresh?
+      </p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-success" onclick="doShiftWeek('${targetKey}',true)">Copy program to ${targetLabel}</button>
+        <button class="btn btn-ghost" onclick="doShiftWeek('${targetKey}',false)">Start fresh for ${targetLabel}</button>
+        <button class="btn" onclick="closeModal()" style="background:none;color:#4a7a9a;border:none">Cancel</button>
+      </div>
+    `);
+  } else if (hasWeekData(targetProg)) {
+    programWeekStart = newStart;
+    renderMain();
+  } else {
+    programWeekStart = newStart;
+    renderMain();
+  }
+}
+
+function doShiftWeek(targetKey, copy) {
+  const c = getClient(); if (!c) return;
+  const newStart = (() => {
+    const parts = targetKey.split(' ');
+    const m = MONTHS_SHORT.indexOf(parts[0]);
+    return new Date(parseInt(parts[2]), m, parseInt(parts[1]));
+  })();
+  if (copy) {
+    const src = getWeekProgram(c, programWeekStart);
+    if (!c.weekPrograms) c.weekPrograms = {};
+    c.weekPrograms[targetKey] = JSON.parse(JSON.stringify(src));
+    save(state);
+  }
+  programWeekStart = newStart;
+  closeModal();
+  renderMain();
+}
+
+let calViewYear  = new Date().getFullYear();
+let calViewMonth = new Date().getMonth();
+
+function openCalendar() {
+  calViewYear  = programWeekStart.getFullYear();
+  calViewMonth = programWeekStart.getMonth();
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const c = getClient();
+  // Build set of day-of-week indices (0=Mon…6=Sun) that have content
+  // Build set of date strings that have workout content across all stored weeks
+  const activeDates = new Set();
+  if (c && c.weekPrograms) {
+    Object.entries(c.weekPrograms).forEach(([key, prog]) => {
+      const parts = key.split(' ');
+      const mon = new Date(parseInt(parts[2]), MONTHS_SHORT.indexOf(parts[0]), parseInt(parts[1]));
+      prog.forEach((day, i) => {
+        if (day.exercises.length || (day.circuits||[]).length || day.workoutName) {
+          const d = new Date(mon); d.setDate(mon.getDate() + i);
+          activeDates.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+        }
+      });
+    });
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstOfMonth = new Date(calViewYear, calViewMonth, 1);
+  const daysInMonth  = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+  // Week starts Monday: getDay() 0=Sun→6, 1=Mon→0
+  const startOffset  = (firstOfMonth.getDay() + 6) % 7;
+  const MONTH_NAMES  = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DOW_LABELS   = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+
+  let cells = '';
+  // Empty cells before month start
+  for (let i = 0; i < startOffset; i++) cells += `<div class="cal-day empty"></div>`;
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date    = new Date(calViewYear, calViewMonth, d);
+    const dow     = (date.getDay() + 6) % 7; // 0=Mon
+    const isToday = date.getTime() === today.getTime();
+    // Is this date within the current programWeekStart week?
+    const weekEnd = new Date(programWeekStart); weekEnd.setDate(programWeekStart.getDate() + 6);
+    const inWeek  = date >= programWeekStart && date <= weekEnd;
+    const isWkStart = date.getTime() === programWeekStart.getTime();
+    const isWkEnd   = date.getTime() === weekEnd.getTime();
+    const hasWorkout = activeDates.has(`${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`);
+
+    cells += `<div class="cal-day${isToday?' today':''}${inWeek?' in-week':''}${isWkStart?' week-start':''}${isWkEnd?' week-end':''}${hasWorkout?' has-workout':''}"
+      onclick="calPickDay(${calViewYear},${calViewMonth},${d})">${d}</div>`;
+  }
+
+  openModal(`
+    <div class="cal-header">
+      <button class="cal-nav" onclick="calShiftMonth(-1)">‹</button>
+      <strong style="color:#c8dff0;font-size:14px">${MONTH_NAMES[calViewMonth]} ${calViewYear}</strong>
+      <button class="cal-nav" onclick="calShiftMonth(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      ${DOW_LABELS.map(l => `<div class="cal-dow">${l}</div>`).join('')}
+      ${cells}
+    </div>
+    <div style="margin-top:12px;font-size:10px;color:#2d4a6a;text-align:center">Click any day to jump to that week</div>
+  `);
+}
+
+function calShiftMonth(delta) {
+  calViewMonth += delta;
+  if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+  renderCalendar();
+}
+
+function calPickDay(y, m, d) {
+  const clicked = new Date(y, m, d);
+  programWeekStart = getMondayOf(clicked);
+  closeModal();
+  renderMain();
+}
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(d) { return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`; }
+function dayDate(dayIdx) {
+  const d = new Date(programWeekStart);
+  d.setDate(programWeekStart.getDate() + dayIdx);
+  return d;
+}
+
+// ── Exercise list (matches tracker) ──────────────────────────────────────────
+const ALL_EXERCISES = [
+  'Bench press','Incline bench press','Squat','Front squat','Deadlift',
+  'Romanian deadlift','OHP','Barbell row','Barbell rows supinated',
+  'Dumbbell rows','Chest supported dumbbell rows','Chest supported T-bar rows',
+  'Lat pulldown','Cable row','Leg press','Leg curl','Leg extension',
+  'Hip thrust','Calf raise','Dumbbell curl','Skull crusher','Tricep pushdown',
+  'Face pull','Shrug',
+  'Clean','Hang clean','Power clean','Clean pull','Clean high pull',
+  'Snatch','Hang snatch','Power snatch','Snatch pull','Snatch high pull',
+  'Jerk','Rack jerk','Squat jerk','Overhead squat',
+  'Pull-ups','Chin-ups','Push-ups','Dips','Inverted rows','Burpees',
+  'Interval Sprints 100m',
+  'Running','Rowing','Walking','Swimming','Jump rope','Rowing machine','Elliptical',
+  'Cycling',
+];
+
+const DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => { t.style.display = 'none'; }, 2800);
+}
+
+function openModal(html, onOpen) {
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalBg').style.display = 'flex';
+  if (onOpen) onOpen();
+}
+function closeModal() {
+  document.getElementById('modalBg').style.display = 'none';
+}
+document.getElementById('modalBg').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalBg')) closeModal();
+});
+
+// ── Client CRUD ───────────────────────────────────────────────────────────────
+function openAddClient() {
+  openModal(`
+    <h3>New Client</h3>
+    <label>Full Name</label>
+    <input id="mName" placeholder="e.g. Alex Johnson" autofocus />
+    <label>Notes (optional)</label>
+    <textarea id="mNotes" placeholder="Goals, injuries, experience level..."></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewClient()">Add Client</button>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('mName')?.focus(), 50);
+}
+
+function saveNewClient() {
+  const name  = document.getElementById('mName').value.trim();
+  const notes = document.getElementById('mNotes').value.trim();
+  if (!name) { alert('Please enter a name.'); return; }
+  const client = {
+    id: uid(), name, notes,
+    program: DAY_NAMES.map(day => ({ day, workoutName: '', exercises: [], circuits: [] })),
+  };
+  state.clients.push(client);
+  save(state);
+  closeModal();
+  renderSidebar();
+  selectClient(client.id);
+  showToast(`✓ ${name} added!`);
+}
+
+function openEditClient(id) {
+  const c = state.clients.find(c => c.id === id);
+  if (!c) return;
+  openModal(`
+    <h3>Edit Client</h3>
+    <label>Full Name</label>
+    <input id="mName" value="${escHtml(c.name)}" />
+    <label>Notes</label>
+    <textarea id="mNotes">${escHtml(c.notes || '')}</textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="updateClient('${id}')">Save</button>
+    </div>
+  `);
+  setTimeout(() => document.getElementById('mName')?.focus(), 50);
+}
+
+function updateClient(id) {
+  const c = state.clients.find(c => c.id === id);
+  if (!c) return;
+  c.name  = document.getElementById('mName').value.trim() || c.name;
+  c.notes = document.getElementById('mNotes').value.trim();
+  save(state);
+  closeModal();
+  renderSidebar();
+  renderMain();
+  showToast('✓ Client updated!');
+}
+
+function deleteClient(id) {
+  if (!confirm('Delete this client and all their workouts?')) return;
+  state.clients = state.clients.filter(c => c.id !== id);
+  save(state);
+  if (activeClientId === id) { activeClientId = null; }
+  renderSidebar();
+  renderMain();
+}
+
+function selectClient(id) {
+  activeClientId = id;
+  renderSidebar();
+  renderMain();
+}
+
+// ── Program editing ───────────────────────────────────────────────────────────
+function getClient() {
+  return state.clients.find(c => c.id === activeClientId) || null;
+}
+
+function addExercise(dayIdx) {
+  const c = getClient(); if (!c) return;
+  getOrCreateWeekProgram()[dayIdx].exercises.push({ id: uid(), name: '', sets: 3, reps: 10 });
+  save(state);
+  renderMain();
+}
+
+function removeExercise(dayIdx, exId) {
+  const c = getClient(); if (!c) return;
+  const prog = getOrCreateWeekProgram();
+  prog[dayIdx].exercises = prog[dayIdx].exercises.filter(e => e.id !== exId);
+  save(state);
+  renderMain();
+}
+
+function updateExName(dayIdx, exId, val) {
+  const c = getClient(); if (!c) return;
+  const ex = getOrCreateWeekProgram()[dayIdx].exercises.find(e => e.id === exId);
+  if (ex) ex.name = val;
+  save(state);
+}
+
+function updateExSets(dayIdx, exId, val) {
+  const c = getClient(); if (!c) return;
+  const ex = getOrCreateWeekProgram()[dayIdx].exercises.find(e => e.id === exId);
+  if (ex) ex.sets = parseInt(val) || 0;
+  save(state);
+}
+
+function parseReps(val) {
+  if (val === '' || val == null) return null;
+  const m = String(val).trim().match(/^(\d+)\s*e$/i);
+  if (m) return m[1] + 'e';
+  const n = parseInt(val);
+  return isNaN(n) ? null : String(n);
+}
+
+function formatRepsExport(reps) {
+  if (reps == null) return null;
+  const m = String(reps).match(/^(\d+)e$/i);
+  return m ? parseInt(m[1]) + ' each' : parseInt(reps) || null;
+}
+
+function updateExReps(dayIdx, exId, val) {
+  const c = getClient(); if (!c) return;
+  const ex = getOrCreateWeekProgram()[dayIdx].exercises.find(e => e.id === exId);
+  if (ex) ex.reps = parseReps(val);
+  save(state);
+}
+
+function addCircuit(dayIdx) {
+  const c = getClient(); if (!c) return;
+  const day = getOrCreateWeekProgram()[dayIdx];
+  if (!day.circuits) day.circuits = [];
+  day.circuits.push({ id: uid(), name: '', exercises: [{ id: uid(), name: '', sets: 3, reps: null }] });
+  save(state); renderMain();
+}
+function removeCircuit(dayIdx, ctId) {
+  const c = getClient(); if (!c) return;
+  const day = getOrCreateWeekProgram()[dayIdx];
+  day.circuits = (day.circuits || []).filter(ct => ct.id !== ctId);
+  save(state); renderMain();
+}
+function updateCircuitName(dayIdx, ctId, val) {
+  const c = getClient(); if (!c) return;
+  const ct = (getOrCreateWeekProgram()[dayIdx].circuits || []).find(ct => ct.id === ctId);
+  if (ct) ct.name = val; save(state);
+}
+function addCircuitExercise(dayIdx, ctId) {
+  const c = getClient(); if (!c) return;
+  const ct = (getOrCreateWeekProgram()[dayIdx].circuits || []).find(ct => ct.id === ctId);
+  if (ct) ct.exercises.push({ id: uid(), name: '', sets: 3, reps: null });
+  save(state); renderMain();
+}
+function removeCircuitExercise(dayIdx, ctId, exId) {
+  const c = getClient(); if (!c) return;
+  const ct = (getOrCreateWeekProgram()[dayIdx].circuits || []).find(ct => ct.id === ctId);
+  if (ct) ct.exercises = ct.exercises.filter(e => e.id !== exId);
+  save(state); renderMain();
+}
+function updateCircuitExName(dayIdx, ctId, exId, val) {
+  const c = getClient(); if (!c) return;
+  const ct = (getOrCreateWeekProgram()[dayIdx].circuits || []).find(ct => ct.id === ctId);
+  const ex = ct?.exercises.find(e => e.id === exId);
+  if (ex) ex.name = val; save(state);
+}
+function updateCircuitExSets(dayIdx, ctId, exId, val) {
+  const c = getClient(); if (!c) return;
+  const ct = (getOrCreateWeekProgram()[dayIdx].circuits || []).find(ct => ct.id === ctId);
+  const ex = ct?.exercises.find(e => e.id === exId);
+  if (ex) ex.sets = parseInt(val) || 0; save(state);
+}
+function updateCircuitExReps(dayIdx, ctId, exId, val) {
+  const c = getClient(); if (!c) return;
+  const ct = (getOrCreateWeekProgram()[dayIdx].circuits || []).find(ct => ct.id === ctId);
+  const ex = ct?.exercises.find(e => e.id === exId);
+  if (ex) ex.reps = parseReps(val); save(state);
+}
+
+function updateWorkoutName(dayIdx, val) {
+  const c = getClient(); if (!c) return;
+  getOrCreateWeekProgram()[dayIdx].workoutName = val;
+  save(state);
+}
+
+function copyDay(targetDayIdx) {
+  const c = getClient(); if (!c) return;
+  if (!c.weekPrograms) return;
+
+  // Collect all days with content across all weeks, newest first
+  const sources = [];
+  Object.entries(c.weekPrograms).forEach(([key, prog]) => {
+    const parts = key.split(' ');
+    const mon = new Date(parseInt(parts[2]), MONTHS_SHORT.indexOf(parts[0]), parseInt(parts[1]));
+    prog.forEach((day, i) => {
+      if (!day.exercises.length && !(day.circuits||[]).length && !day.workoutName) return;
+      const d = new Date(mon); d.setDate(mon.getDate() + i);
+      // Skip the target day itself in the current week
+      if (key === weekKey(programWeekStart) && i === targetDayIdx) return;
+      const exCount = day.exercises.length + (day.circuits||[]).reduce((s, ct) => s + ct.exercises.length, 0);
+      const firstEx = day.exercises[0]?.name || day.circuits?.[0]?.exercises?.[0]?.name || '';
+      sources.push({ key, dayIdx: i, date: d, label: DAY_NAMES[i], workoutName: day.workoutName, exCount, firstEx });
+    });
+  });
+
+  sources.sort((a, b) => a.dayIdx !== b.dayIdx ? a.dayIdx - b.dayIdx : b.date - a.date);
+
+  if (!sources.length) {
+    showToast('No other days with workouts to copy from.');
+    return;
+  }
+
+  const rows = sources.map((s, si) => `
+    <div onclick="doCopyDay('${s.key}',${s.dayIdx},${targetDayIdx})"
+      style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;cursor:pointer;border:1px solid #1e3a55;margin-bottom:6px;transition:background .1s"
+      onmouseover="this.style.background='#1a3050'" onmouseout="this.style.background=''">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#c8dff0">${s.label} · ${fmtDate(s.date)}</div>
+        ${s.workoutName ? `<div style="font-size:11px;color:#4a9adc;margin-top:2px">${escHtml(s.workoutName)}</div>` : ''}
+        ${s.firstEx ? `<div style="font-size:10px;color:#3a5a7a;margin-top:2px">${escHtml(s.firstEx)}${s.exCount > 1 ? `, +${s.exCount - 1} more` : ''}</div>` : ''}
+      </div>
+      <span style="font-size:11px;color:#3a5a7a">${s.exCount} ex</span>
+    </div>
+  `).join('');
+
+  openModal(`
+    <h3>Copy to ${DAY_NAMES[targetDayIdx]} · ${fmtDate(dayDate(targetDayIdx))}</h3>
+    <p style="font-size:11px;color:#4a7a9a;margin-bottom:14px">Select a previous day to copy its exercises and circuits.</p>
+    <div style="max-height:340px;overflow-y:auto">${rows}</div>
+    <button class="btn" onclick="closeModal()" style="margin-top:10px;width:100%;background:none;color:#4a7a9a;border:1px solid #1e3a55">Cancel</button>
+  `);
+}
+
+function doCopyDay(srcKey, srcDayIdx, targetDayIdx) {
+  const c = getClient(); if (!c) return;
+  const src  = c.weekPrograms[srcKey]?.[srcDayIdx];
+  if (!src) return;
+  const dest = getOrCreateWeekProgram()[targetDayIdx];
+  // Deep-clone with fresh IDs
+  dest.workoutName = src.workoutName;
+  dest.exercises   = src.exercises.map(ex => ({ ...ex, id: uid() }));
+  dest.circuits    = (src.circuits||[]).map(ct => ({
+    ...ct, id: uid(),
+    exercises: ct.exercises.map(ex => ({ ...ex, id: uid() })),
+  }));
+  save(state);
+  closeModal();
+  renderMain();
+  showToast(`✓ Copied to ${DAY_NAMES[targetDayIdx]}!`);
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+function exportDayWorkout(day, date) {
+  if (!day.exercises.length && !(day.circuits||[]).length && !day.workoutName) return null;
+  return {
+    date: fmtDate(date),
+    name: day.workoutName || day.day,
+    exercises: day.exercises
+      .filter(ex => ex.name.trim())
+      .map(ex => ({ name: ex.name.trim(), sets: ex.sets, reps: formatRepsExport(ex.reps) })),
+    circuits: (day.circuits || []).map(ct => ({
+      name: ct.name || 'Circuit',
+      exercises: ct.exercises.filter(ex => ex.name.trim()).map(ex => ({ name: ex.name.trim(), sets: ex.sets, reps: formatRepsExport(ex.reps) })),
+    })).filter(ct => ct.exercises.length),
+  };
+}
+
+function exportClient() {
+  const c = getClient(); if (!c) return;
+
+  // Collect all workouts across every stored week, sorted by date
+  const workouts = [];
+  Object.entries(c.weekPrograms || {}).forEach(([key, prog]) => {
+    const parts = key.split(' ');
+    const mon = new Date(parseInt(parts[2]), MONTHS_SHORT.indexOf(parts[0]), parseInt(parts[1]));
+    prog.forEach((day, i) => {
+      const d = new Date(mon); d.setDate(mon.getDate() + i);
+      const w = exportDayWorkout(day, d);
+      if (w) workouts.push({ ...w, _ts: d.getTime() });
+    });
+  });
+  workouts.sort((a, b) => a._ts - b._ts);
+  workouts.forEach(w => delete w._ts);
+
+  if (!workouts.length) { showToast('Nothing to export yet.'); return; }
+
+  const payload = {
+    _coach_export: true,
+    client: c.name,
+    exported: new Date().toISOString(),
+    workouts,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${c.name.replace(/\s+/g,'-')}-program-full.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ Exported ${workouts.length} workouts for ${c.name}!`);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderSidebar() {
+  const list = document.getElementById('clientList');
+  if (!state.clients.length) {
+    list.innerHTML = '<div style="padding:14px;font-size:12px;color:#2d4a6a;text-align:center;">No clients yet</div>';
+    return;
+  }
+  list.innerHTML = state.clients.map(c => `
+    <div class="client-item ${c.id === activeClientId ? 'active' : ''}" onclick="selectClient('${c.id}')">
+      <span>${escHtml(c.name)}</span>
+      <div style="display:flex;gap:2px">
+        <button class="del-btn" onclick="event.stopPropagation();openEditClient('${c.id}')" title="Edit">✎</button>
+        <button class="del-btn" onclick="event.stopPropagation();deleteClient('${c.id}')" title="Delete">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderMain() {
+  const title   = document.getElementById('topTitle');
+  const sub     = document.getElementById('topSub');
+  const actions = document.getElementById('topbarActions');
+  const content = document.getElementById('mainContent');
+
+  const c = getClient();
+  if (!c) {
+    title.textContent   = 'Workout Coach';
+    sub.textContent     = 'Select a client to begin programming';
+    actions.innerHTML   = `
+      <label class="import-label" title="Import a previously exported JSON to continue editing">
+        📂 Import JSON
+        <input type="file" accept=".json" style="display:none" onchange="importJSON(event)" />
+      </label>
+    `;
+    content.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🏋️</div>
+        <h3>No client selected</h3>
+        <p>Add a client from the sidebar, then build and export their workout program.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const initials = c.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const prog     = getWeekProgram(c, programWeekStart) || emptyWeek();
+  const totalEx  = prog.reduce((n, d) => n + d.exercises.length + (d.circuits||[]).reduce((m, ct) => m + ct.exercises.length, 0), 0);
+
+  title.textContent = c.name;
+  sub.textContent   = c.notes || 'No notes';
+  actions.innerHTML = `
+    <label class="import-label" title="Import a previously exported JSON">
+      📂 Import JSON
+      <input type="file" accept=".json" style="display:none" onchange="importJSON(event)" />
+    </label>
+    <button class="btn btn-success" onclick="exportClient()">⬇ Export JSON</button>
+  `;
+
+  content.innerHTML = `
+    <div class="client-info-bar">
+      <div class="client-avatar">${initials}</div>
+      <div>
+        <h2>${escHtml(c.name)}</h2>
+        <p>${escHtml(c.notes || 'No notes')} &nbsp;·&nbsp; ${totalEx} exercise${totalEx !== 1 ? 's' : ''} programmed</p>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost" onclick="openEditClient('${c.id}')">Edit Info</button>
+    </div>
+
+    <div class="export-panel">
+      <p>
+        <strong>Ready to send?</strong><br>
+        Export this client's program as a JSON file. They can import it directly into the Workout Tracker app.
+      </p>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:6px">
+          <button onclick="shiftWeek(-1)" style="background:#0a1828;border:1px solid #2d4a6a;color:#8bbdd8;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px">‹</button>
+          <span style="font-size:11px;font-weight:700;color:#5adb9a;white-space:nowrap">Week of ${fmtDate(programWeekStart)}</span>
+          <button onclick="shiftWeek(1)" style="background:#0a1828;border:1px solid #2d4a6a;color:#8bbdd8;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px">›</button>
+          <button onclick="openCalendar()" title="Pick week from calendar" style="background:#0a1828;border:1px solid #2d4a6a;color:#8bbdd8;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:13px">📅</button>
+        </div>
+        <button class="btn btn-success" onclick="exportClient()">⬇ Export JSON</button>
+      </div>
+    </div>
+
+    <div class="section-title">Weekly Program <span class="badge-count">${totalEx} exercises</span></div>
+    <div class="week-plan" id="weekPlan">
+      ${prog.map((day, dayIdx) => renderDayCard(day, dayIdx)).join('')}
+    </div>
+    <div style="height:40px"></div>
+  `;
+}
+
+function renderDayCard(day, dayIdx) {
+  const exCount = day.exercises.length;
+  return `
+    <div class="day-card">
+      <div class="day-header">
+        <span class="day-label">${DAY_NAMES[dayIdx]} <span style="font-size:10px;font-weight:400;color:#3a6a8a;margin-left:4px">${fmtDate(dayDate(dayIdx))}</span></span>
+        <div class="workout-name">
+          <input
+            placeholder="Workout name (e.g. Push Day)"
+            value="${escHtml(day.workoutName)}"
+            oninput="updateWorkoutName(${dayIdx}, this.value)"
+          />
+        </div>
+        <div class="day-actions">
+          <button onclick="copyDay(${dayIdx})" title="Copy another day's workout here" style="background:none;border:1px solid #2d4a6a;color:#4a7a9a;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;margin-right:4px;transition:all .1s" onmouseover="this.style.borderColor='#4a9adc';this.style.color='#8bbdd8'" onmouseout="this.style.borderColor='#2d4a6a';this.style.color='#4a7a9a'">Copy Day</button>
+          <span style="font-size:10px;color:#2d4a6a;margin-right:4px">${exCount} ex</span>
+        </div>
+      </div>
+      <div class="day-body">
+        ${exCount === 0 ? `<div class="rest-day-label">Rest day — add exercises below to program this day</div>` : ''}
+        ${exCount > 0 ? `
+          <div style="display:flex;gap:8px;margin-bottom:4px;padding:0 0 2px">
+            <div class="ex-name-cell"><div class="col-label">Exercise</div></div>
+            <div class="sets-cell"><div class="col-label">Sets</div></div>
+            <div class="reps-cell"><div class="col-label">Reps</div></div>
+            <div style="width:28px"></div>
+          </div>
+        ` : ''}
+        ${day.exercises.map(ex => `
+          <div class="ex-row">
+            <div class="ex-name-cell">
+              <input
+                list="exList"
+                placeholder="Exercise name"
+                value="${escHtml(ex.name)}"
+                oninput="updateExName(${dayIdx}, '${ex.id}', this.value)"
+              />
+            </div>
+            <div class="sets-cell">
+              <input type="number" min="1" max="20" value="${ex.sets}"
+                oninput="updateExSets(${dayIdx}, '${ex.id}', this.value)" />
+            </div>
+            <div class="reps-cell">
+              <input type="text" value="${ex.reps === null ? '' : ex.reps}"
+                placeholder="—"
+                oninput="updateExReps(${dayIdx}, '${ex.id}', this.value)" />
+            </div>
+            <button class="icon-btn danger" onclick="removeExercise(${dayIdx}, '${ex.id}')" title="Remove">✕</button>
+          </div>
+        `).join('')}
+        ${(day.circuits || []).map(ct => `
+          <div class="circuit-block">
+            <div class="circuit-header">
+              <span class="circuit-label">Circuit</span>
+              <input class="circuit-name-input" placeholder="Circuit name (optional)"
+                value="${escHtml(ct.name)}"
+                oninput="updateCircuitName(${dayIdx}, '${ct.id}', this.value)" />
+              <button class="icon-btn danger" onclick="removeCircuit(${dayIdx}, '${ct.id}')" title="Remove circuit">✕</button>
+            </div>
+            <div class="circuit-ex-list">
+            ${ct.exercises.map(ex => `
+              <div class="ex-row">
+                <div class="ex-name-cell">
+                  <input list="exList" placeholder="Exercise name" value="${escHtml(ex.name)}"
+                    oninput="updateCircuitExName(${dayIdx}, '${ct.id}', '${ex.id}', this.value)" />
+                </div>
+                <div class="sets-cell">
+                  <input type="number" min="1" max="20" value="${ex.sets}"
+                    oninput="updateCircuitExSets(${dayIdx}, '${ct.id}', '${ex.id}', this.value)" />
+                </div>
+                <div class="reps-cell">
+                  <input type="text" value="${ex.reps === null ? '' : ex.reps}" placeholder="—"
+                    oninput="updateCircuitExReps(${dayIdx}, '${ct.id}', '${ex.id}', this.value)" />
+                </div>
+                <button class="icon-btn danger" onclick="removeCircuitExercise(${dayIdx}, '${ct.id}', '${ex.id}')" title="Remove">✕</button>
+              </div>
+            `).join('')}
+            </div>
+            <button class="add-ex-btn" style="margin-top:6px" onclick="addCircuitExercise(${dayIdx}, '${ct.id}')">+ Add Exercise</button>
+          </div>
+        `).join('')}
+        <div style="display:flex;gap:0;margin-top:2px">
+          <button class="add-ex-btn" onclick="addExercise(${dayIdx})">+ Add Exercise</button>
+          <button class="add-circuit-btn" onclick="addCircuit(${dayIdx})">+ Add Circuit</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Import ────────────────────────────────────────────────────────────────────
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data._coach_export || !data.workouts) {
+        alert('This file does not appear to be a valid coach export.');
+        return;
+      }
+      // Find or create client
+      let client = state.clients.find(c => c.name === data.client);
+      if (!client) {
+        client = { id: uid(), name: data.client, notes: `Imported ${new Date(data.exported).toLocaleDateString()}`, weekPrograms: {} };
+        state.clients.push(client);
+      }
+      if (!client.weekPrograms) client.weekPrograms = {};
+      // Group imported workouts by week, write into weekPrograms
+      data.workouts.forEach(w => {
+        // Derive the Monday of the week this date belongs to
+        const dateParts = w.date ? w.date.match(/^(\w+)\s+(\d+)$/) : null;
+        if (!dateParts) return;
+        const m = MONTHS_SHORT.indexOf(dateParts[1]);
+        const year = new Date().getFullYear(); // exported dates don't carry year; infer current
+        const d = new Date(year, m, parseInt(dateParts[2]));
+        const mon = getMondayOf(d);
+        const wKey = weekKey(mon);
+        if (!client.weekPrograms[wKey]) client.weekPrograms[wKey] = emptyWeek();
+        const dayIdx = (d.getDay() + 6) % 7; // 0=Mon
+        const slot = client.weekPrograms[wKey][dayIdx];
+        slot.workoutName = w.name;
+        slot.exercises   = (w.exercises || []).map(ex => ({ id: uid(), name: ex.name, sets: ex.sets, reps: ex.reps }));
+        slot.circuits    = (w.circuits  || []).map(ct => ({ id: uid(), name: ct.name, exercises: (ct.exercises||[]).map(ex => ({ id: uid(), name: ex.name, sets: ex.sets, reps: ex.reps })) }));
+      });
+      save(state);
+      activeClientId = client.id;
+      renderSidebar();
+      renderMain();
+      showToast(`✓ Imported ${data.client}'s program!`);
+    } catch (err) {
+      alert('Failed to parse JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ── Exercise datalist ─────────────────────────────────────────────────────────
+function buildDatalist() {
+  const dl = document.createElement('datalist');
+  dl.id    = 'exList';
+  ALL_EXERCISES.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    dl.appendChild(opt);
+  });
+  document.body.appendChild(dl);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildDatalist();
+renderSidebar();
+renderMain();
+</script>
+</body>
+</html>

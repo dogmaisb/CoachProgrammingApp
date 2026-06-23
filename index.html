@@ -798,6 +798,16 @@ const ALL_EXERCISES = [
   { name: 'Side plank',                     type: 'bodyweight' },
   { name: 'Hanging leg raise',              type: 'bodyweight' },
   { name: 'Cable crunch',                   type: 'bodyweight' },
+  // Power — distance-based throws, jumps, bounds
+  { name: 'Broad jump',                     type: 'power'      },
+  { name: 'Triple broad jump',              type: 'power'      },
+  { name: 'Box jump',                       type: 'power'      },
+  { name: 'Vertical jump',                  type: 'power'      },
+  { name: 'Medball throw',                  type: 'power'      },
+  { name: 'Medball chest pass',             type: 'power'      },
+  { name: 'Medball overhead throw',         type: 'power'      },
+  { name: 'Medball rotational throw',       type: 'power'      },
+  { name: 'Standing long jump',             type: 'power'      },
   // Sprint
   { name: 'Interval Sprints 100m',          type: 'sprint'     },
   { name: 'Sled push',                      type: 'sprint'     },
@@ -1547,7 +1557,7 @@ let _acSuppress  = false;
 
 const EX_TYPE_LABEL = {
   strength: '', bodyweight: 'BW', cardio: 'Cardio',
-  sprint: 'Sprint', jumprope: 'Rope', cycling: 'Cycling',
+  sprint: 'Sprint', jumprope: 'Rope', cycling: 'Cycling', power: 'Power',
 };
 
 function acShow(input) {
@@ -1661,6 +1671,7 @@ const PRESC_PH = {
   sprint:     '8 × 100m',
   jumprope:   '500, 5 min',
   cycling:    '10 mi, 45 min',
+  power:      '9 ft, 36 in, 17 m',
 };
 
 function prescCellHtml(ex, dayIdx, ctId) {
@@ -1686,6 +1697,7 @@ function prescCellHtml(ex, dayIdx, ctId) {
         <option value="sprint"${s('sprint')}>Sprint</option>
         <option value="jumprope"${s('jumprope')}>Rope</option>
         <option value="cycling"${s('cycling')}>Cycling</option>
+      <option value="power"${s('power')}>Power</option>
       </select>
       <input type="number" min="1" max="20" class="presc-val" value="${numVal}"
         placeholder="${ph}" oninput="${oninput}" style="width:62px;flex:none" />

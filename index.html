@@ -1717,6 +1717,7 @@ function prescCellHtml(ex, dayIdx, ctId) {
       <option value="sprint"${s('sprint')}>Sprint</option>
       <option value="jumprope"${s('jumprope')}>Rope</option>
       <option value="cycling"${s('cycling')}>Cycling</option>
+      <option value="power"${s('power')}>Power</option>
     </select>
     <input type="text" class="presc-val" value="${ex.reps === null ? '' : escHtml(String(ex.reps))}"
       placeholder="${ph}" oninput="${oninput}" />

@@ -286,6 +286,23 @@
     font-size: 12px; color: #2d4a6a; padding: 8px 0; font-style: italic;
   }
 
+  .drag-handle {
+    cursor: grab; color: #2a4a6a; font-size: 15px; padding: 0 5px 0 0;
+    flex-shrink: 0; user-select: none; display: flex; align-items: center;
+    transition: color .1s; line-height: 1;
+  }
+  .drag-handle:hover { color: #4a9adc; }
+  .drag-handle:active { cursor: grabbing; }
+  .ex-row.drag-over { outline: 2px dashed #4a9adc; outline-offset: -1px; background: #0d1e34; }
+  .circuit-block.drag-over { outline: 2px dashed #4a9adc; outline-offset: -2px; }
+  .dragging-item { opacity: 0.35; }
+  .add-superset-btn {
+    margin-top: 8px; margin-left: 6px; padding: 7px 12px; border-radius: 7px;
+    background: none; border: 1px dashed #2a4a8a; color: #4a7adc;
+    font-size: 11px; font-weight: 600; cursor: pointer; transition: all .12s;
+  }
+  .add-superset-btn:hover { background: #0a1428; border-color: #4a7adc; color: #8aabf0; }
+
   /* ── Date picker strip ── */
   .date-strip {
     display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap;
@@ -396,11 +413,16 @@
   .prog-history-table tr:last-child td { border-bottom: none; }
 
   /* ── Autocomplete dropdown ── */
-  #ac-dropdown {
+  #ac-dropdown, #ct-ac-dropdown {
     display: none; position: fixed; z-index: 500;
-    background: #0d1e30; border: 1px solid #2d5a8a;
     border-radius: 9px; box-shadow: 0 10px 36px rgba(0,0,0,.6);
-    overflow-y: auto; max-height: 230px;
+    overflow-y: auto; max-height: 260px;
+  }
+  #ac-dropdown {
+    background: #0d1e30; border: 1px solid #2d5a8a;
+  }
+  #ct-ac-dropdown {
+    background: #0a1a0e; border: 1px solid #2a5a20;
   }
   .ac-item {
     padding: 8px 13px; font-size: 12px; color: #c8dff0;
@@ -409,6 +431,23 @@
   }
   .ac-item:last-child { border-bottom: none; }
   .ac-item.ac-hover { background: #1a3050; color: #7dd8ff; }
+  .ct-ac-item {
+    display: flex; align-items: center; gap: 6px;
+    border-bottom: 1px solid #1a3a10; padding: 7px 10px;
+    cursor: pointer; color: #a0c080;
+  }
+  .ct-ac-item:last-child { border-bottom: none; }
+  .ct-ac-item:hover { background: #112210; }
+  .ct-ac-name { font-weight: 700; color: #8aba6a; font-size: 12px; flex: 1; }
+  .ct-ac-count { color: #3a6a2a; font-size: 10px; white-space: nowrap; }
+  .ct-ac-del { color: #2a4a20; font-size: 10px; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+  .ct-ac-del:hover { color: #e05050; background: rgba(224,80,80,.12); }
+  .save-ct-btn {
+    flex-shrink: 0; background: none; border: 1px solid #2a4a1a; color: #4a7a2a;
+    border-radius: 5px; padding: 2px 7px; font-size: 10px; font-weight: 700;
+    cursor: pointer; transition: all .1s; white-space: nowrap;
+  }
+  .save-ct-btn:hover { background: #0f2810; border-color: #6a9a4a; color: #8aba6a; }
 
   /* ── Scrollbar ── */
   ::-webkit-scrollbar { width: 6px; }
@@ -483,8 +522,12 @@
 const STORAGE_KEY = 'wc_coach_data';
 
 function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { clients: [] }; }
-  catch { return { clients: [] }; }
+  try {
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { clients: [] };
+    if (!d.savedCircuits) d.savedCircuits = [];
+    return d;
+  }
+  catch { return { clients: [], savedCircuits: [] }; }
 }
 function save(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -941,15 +984,19 @@ function getClient() {
 
 function addExercise(dayIdx) {
   const c = getClient(); if (!c) return;
-  getOrCreateWeekProgram()[dayIdx].exercises.push({ id: uid(), name: '', sets: 3, reps: null, type: 'strength' });
+  const day = getOrCreateWeekProgram()[dayIdx];
+  const newEx = { id: uid(), name: '', sets: 3, reps: null, type: 'strength' };
+  day.exercises.push(newEx);
+  const ord = getItemOrder(day); ord.push({ kind: 'ex', id: newEx.id }); day.itemOrder = ord;
   save(state);
   renderMain();
 }
 
 function removeExercise(dayIdx, exId) {
   const c = getClient(); if (!c) return;
-  const prog = getOrCreateWeekProgram();
-  prog[dayIdx].exercises = prog[dayIdx].exercises.filter(e => e.id !== exId);
+  const day = getOrCreateWeekProgram()[dayIdx];
+  day.exercises = day.exercises.filter(e => e.id !== exId);
+  if (day.itemOrder) day.itemOrder = day.itemOrder.filter(o => !(o.kind === 'ex' && o.id === exId));
   save(state);
   renderMain();
 }
@@ -993,14 +1040,71 @@ function addCircuit(dayIdx) {
   const c = getClient(); if (!c) return;
   const day = getOrCreateWeekProgram()[dayIdx];
   if (!day.circuits) day.circuits = [];
-  day.circuits.push({ id: uid(), name: '', exercises: [{ id: uid(), name: '', sets: 3, reps: null }] });
+  const newCt = { id: uid(), name: '', exercises: [{ id: uid(), name: '', sets: 3, reps: null, type: 'strength' }] };
+  day.circuits.push(newCt);
+  const ord = getItemOrder(day); ord.push({ kind: 'ct', id: newCt.id }); day.itemOrder = ord;
   save(state); renderMain();
 }
 function removeCircuit(dayIdx, ctId) {
   const c = getClient(); if (!c) return;
   const day = getOrCreateWeekProgram()[dayIdx];
   day.circuits = (day.circuits || []).filter(ct => ct.id !== ctId);
+  if (day.itemOrder) day.itemOrder = day.itemOrder.filter(o => !(o.kind === 'ct' && o.id === ctId));
   save(state); renderMain();
+}
+function addSuperset(dayIdx) {
+  const c = getClient(); if (!c) return;
+  const day = getOrCreateWeekProgram()[dayIdx];
+  if (!day.circuits) day.circuits = [];
+  const newCt = { id: uid(), name: 'Superset', exercises: [
+    { id: uid(), name: '', sets: 3, reps: null, type: 'strength' },
+    { id: uid(), name: '', sets: 3, reps: null, type: 'strength' },
+  ]};
+  day.circuits.push(newCt);
+  const ord = getItemOrder(day); ord.push({ kind: 'ct', id: newCt.id }); day.itemOrder = ord;
+  save(state); renderMain();
+}
+function getItemOrder(day) {
+  const exIds = new Set((day.exercises||[]).map(e => e.id));
+  const ctIds = new Set((day.circuits||[]).map(c => c.id));
+  let ord = (day.itemOrder || []).filter(o => o.kind === 'ex' ? exIds.has(o.id) : ctIds.has(o.id));
+  (day.exercises||[]).forEach(e => { if (!ord.find(o => o.kind==='ex' && o.id===e.id)) ord.push({kind:'ex',id:e.id}); });
+  (day.circuits||[]).forEach(c => { if (!ord.find(o => o.kind==='ct' && o.id===c.id)) ord.push({kind:'ct',id:c.id}); });
+  return ord;
+}
+let _dragInfo = null;
+function dayDragStart(event, dayIdx, kind, id) {
+  if (event.target.closest('input,select,button,textarea')) { event.preventDefault(); return; }
+  _dragInfo = { dayIdx, kind, id };
+  event.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => { const el = document.getElementById(`item-${kind}-${id}`); if (el) el.classList.add('dragging-item'); }, 0);
+}
+function dayDragOver(event, dayIdx, kind, id) {
+  if (!_dragInfo || _dragInfo.dayIdx !== dayIdx) return;
+  if (_dragInfo.kind === kind && _dragInfo.id === id) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  const el = document.getElementById(`item-${kind}-${id}`);
+  if (el) el.classList.add('drag-over');
+}
+function dayDrop(event, dayIdx, kind, id) {
+  event.preventDefault();
+  if (!_dragInfo || _dragInfo.dayIdx !== dayIdx) { _dragInfo = null; return; }
+  if (_dragInfo.kind === kind && _dragInfo.id === id) { _dragInfo = null; return; }
+  const day = getOrCreateWeekProgram()[dayIdx];
+  let ord = getItemOrder(day);
+  const si = ord.findIndex(o => o.kind === _dragInfo.kind && o.id === _dragInfo.id);
+  const di = ord.findIndex(o => o.kind === kind && o.id === id);
+  if (si < 0 || di < 0) { _dragInfo = null; return; }
+  const [item] = ord.splice(si, 1);
+  ord.splice(di, 0, item);
+  day.itemOrder = ord;
+  save(state); _dragInfo = null; renderMain();
+}
+function dayDragEnd() {
+  _dragInfo = null;
+  document.querySelectorAll('.dragging-item, .drag-over').forEach(el => el.classList.remove('dragging-item','drag-over'));
 }
 function updateCircuitName(dayIdx, ctId, val) {
   const c = getClient(); if (!c) return;
@@ -1855,17 +1959,85 @@ function renderMain() {
 }
 
 function renderDayCard(day, dayIdx) {
-  const exCount = day.exercises.length;
+  const order = getItemOrder(day);
+  const hasItems = order.length > 0;
+  const exCount = day.exercises.length + (day.circuits||[]).reduce((n,c)=>n+c.exercises.length,0);
+
+  const itemsHtml = order.map(item => {
+    if (item.kind === 'ex') {
+      const ex = (day.exercises||[]).find(e => e.id === item.id);
+      if (!ex) return '';
+      return `
+        <div class="ex-row" id="item-ex-${ex.id}" draggable="true"
+          ondragstart="dayDragStart(event,${dayIdx},'ex','${ex.id}')"
+          ondragover="dayDragOver(event,${dayIdx},'ex','${ex.id}')"
+          ondrop="dayDrop(event,${dayIdx},'ex','${ex.id}')"
+          ondragend="dayDragEnd()">
+          <div class="drag-handle">⠿</div>
+          <div class="ex-name-cell">
+            <input placeholder="Exercise name" value="${escHtml(ex.name)}"
+              oninput="acShow(this);updateExName(${dayIdx},'${ex.id}',this.value)"
+              onkeydown="acKey(event,this)" onblur="setTimeout(acHide,160)" />
+          </div>
+          <div class="sets-cell">
+            <input type="number" min="1" max="20" value="${ex.sets}"
+              oninput="updateExSets(${dayIdx},'${ex.id}',this.value)" />
+          </div>
+          <div class="reps-cell">${prescCellHtml(ex, dayIdx, null)}</div>
+          <button class="icon-btn danger" onclick="removeExercise(${dayIdx},'${ex.id}')" title="Remove">✕</button>
+        </div>`;
+    } else {
+      const ct = (day.circuits||[]).find(c => c.id === item.id);
+      if (!ct) return '';
+      const isSuperset = ct.exercises.length === 2;
+      const blockLabel = isSuperset ? 'Superset' : 'Circuit';
+      const namePh = isSuperset ? 'Superset name (optional)' : 'Circuit name (optional)';
+      return `
+        <div class="circuit-block" id="item-ct-${ct.id}" draggable="true"
+          ondragstart="dayDragStart(event,${dayIdx},'ct','${ct.id}')"
+          ondragover="dayDragOver(event,${dayIdx},'ct','${ct.id}')"
+          ondrop="dayDrop(event,${dayIdx},'ct','${ct.id}')"
+          ondragend="dayDragEnd()">
+          <div class="circuit-header">
+            <div class="drag-handle" style="font-size:14px;margin-right:0">⠿</div>
+            <span class="circuit-label">${blockLabel}</span>
+            <input class="circuit-name-input" placeholder="${namePh}"
+              value="${escHtml(ct.name)}"
+              oninput="updateCircuitName(${dayIdx},'${ct.id}',this.value);ctAcShow(this)"
+              onfocus="ctAcShow(this)"
+              onblur="setTimeout(ctAcHide,180)" />
+            <button class="save-ct-btn" onclick="saveCircuitTemplate(${dayIdx},'${ct.id}')" title="Save as template">💾</button>
+            <button class="icon-btn danger" onclick="removeCircuit(${dayIdx},'${ct.id}')" title="Remove">✕</button>
+          </div>
+          <div class="circuit-ex-list">
+          ${ct.exercises.map(ex => `
+            <div class="ex-row">
+              <div class="ex-name-cell">
+                <input placeholder="Exercise name" value="${escHtml(ex.name)}"
+                  oninput="acShow(this);updateCircuitExName(${dayIdx},'${ct.id}','${ex.id}',this.value)"
+                  onkeydown="acKey(event,this)" onblur="setTimeout(acHide,160)" />
+              </div>
+              <div class="sets-cell">
+                <input type="number" min="1" max="20" value="${ex.sets}"
+                  oninput="updateCircuitExSets(${dayIdx},'${ct.id}','${ex.id}',this.value)" />
+              </div>
+              <div class="reps-cell">${prescCellHtml(ex, dayIdx, ct.id)}</div>
+              <button class="icon-btn danger" onclick="removeCircuitExercise(${dayIdx},'${ct.id}','${ex.id}')" title="Remove">✕</button>
+            </div>
+          `).join('')}
+          </div>
+          <button class="add-ex-btn" style="margin-top:6px" onclick="addCircuitExercise(${dayIdx},'${ct.id}')">+ Add Exercise</button>
+        </div>`;
+    }
+  }).join('');
+
   return `
     <div class="day-card">
       <div class="day-header">
         <span class="day-label">${DAY_NAMES[dayIdx]} <span style="font-size:10px;font-weight:400;color:#3a6a8a;margin-left:4px">${fmtDate(dayDate(dayIdx))}</span></span>
         <div class="workout-name">
-          <input
-            placeholder="Workout name (e.g. Push Day)"
-            value="${escHtml(day.workoutName)}"
-            oninput="updateWorkoutName(${dayIdx}, this.value)"
-          />
+          <input placeholder="Workout name (e.g. Push Day)" value="${escHtml(day.workoutName)}"
+            oninput="updateWorkoutName(${dayIdx}, this.value)" />
         </div>
         <div class="day-actions">
           <button onclick="copyDay(${dayIdx})" title="Copy another day's workout here" style="background:none;border:1px solid #2d4a6a;color:#4a7a9a;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer;margin-right:4px;transition:all .1s" onmouseover="this.style.borderColor='#4a9adc';this.style.color='#8bbdd8'" onmouseout="this.style.borderColor='#2d4a6a';this.style.color='#4a7a9a'">Copy Day</button>
@@ -1873,67 +2045,21 @@ function renderDayCard(day, dayIdx) {
         </div>
       </div>
       <div class="day-body">
-        ${exCount === 0 ? `<div class="rest-day-label">Rest day — add exercises below to program this day</div>` : ''}
-        ${exCount > 0 ? `
+        ${!hasItems ? `<div class="rest-day-label">Rest day — add exercises below to program this day</div>` : ''}
+        ${hasItems ? `
           <div style="display:flex;gap:8px;margin-bottom:4px;padding:0 0 2px">
+            <div style="width:20px"></div>
             <div class="ex-name-cell"><div class="col-label">Exercise</div></div>
             <div class="sets-cell"><div class="col-label">Sets</div></div>
             <div class="reps-cell"><div class="col-label">Prescription</div></div>
             <div style="width:28px"></div>
           </div>
         ` : ''}
-        ${day.exercises.map(ex => `
-          <div class="ex-row">
-            <div class="ex-name-cell">
-              <input
-                placeholder="Exercise name"
-                value="${escHtml(ex.name)}"
-                oninput="acShow(this);updateExName(${dayIdx}, '${ex.id}', this.value)"
-                onkeydown="acKey(event,this)"
-                onblur="setTimeout(acHide,160)"
-              />
-            </div>
-            <div class="sets-cell">
-              <input type="number" min="1" max="20" value="${ex.sets}"
-                oninput="updateExSets(${dayIdx}, '${ex.id}', this.value)" />
-            </div>
-            <div class="reps-cell">${prescCellHtml(ex, dayIdx, null)}</div>
-            <button class="icon-btn danger" onclick="removeExercise(${dayIdx}, '${ex.id}')" title="Remove">✕</button>
-          </div>
-        `).join('')}
-        ${(day.circuits || []).map(ct => `
-          <div class="circuit-block">
-            <div class="circuit-header">
-              <span class="circuit-label">Circuit</span>
-              <input class="circuit-name-input" placeholder="Circuit name (optional)"
-                value="${escHtml(ct.name)}"
-                oninput="updateCircuitName(${dayIdx}, '${ct.id}', this.value)" />
-              <button class="icon-btn danger" onclick="removeCircuit(${dayIdx}, '${ct.id}')" title="Remove circuit">✕</button>
-            </div>
-            <div class="circuit-ex-list">
-            ${ct.exercises.map(ex => `
-              <div class="ex-row">
-                <div class="ex-name-cell">
-                  <input placeholder="Exercise name" value="${escHtml(ex.name)}"
-                    oninput="acShow(this);updateCircuitExName(${dayIdx}, '${ct.id}', '${ex.id}', this.value)"
-                    onkeydown="acKey(event,this)"
-                    onblur="setTimeout(acHide,160)" />
-                </div>
-                <div class="sets-cell">
-                  <input type="number" min="1" max="20" value="${ex.sets}"
-                    oninput="updateCircuitExSets(${dayIdx}, '${ct.id}', '${ex.id}', this.value)" />
-                </div>
-                <div class="reps-cell">${prescCellHtml(ex, dayIdx, ct.id)}</div>
-                <button class="icon-btn danger" onclick="removeCircuitExercise(${dayIdx}, '${ct.id}', '${ex.id}')" title="Remove">✕</button>
-              </div>
-            `).join('')}
-            </div>
-            <button class="add-ex-btn" style="margin-top:6px" onclick="addCircuitExercise(${dayIdx}, '${ct.id}')">+ Add Exercise</button>
-          </div>
-        `).join('')}
+        ${itemsHtml}
         <div style="display:flex;gap:0;margin-top:2px">
           <button class="add-ex-btn" onclick="addExercise(${dayIdx})">+ Add Exercise</button>
           <button class="add-circuit-btn" onclick="addCircuit(${dayIdx})">+ Add Circuit</button>
+          <button class="add-superset-btn" onclick="addSuperset(${dayIdx})">⇄ Superset</button>
         </div>
       </div>
     </div>
@@ -2127,9 +2253,83 @@ function importJSON(event) {
   event.target.value = '';
 }
 
+// ── Saved Circuit Templates ───────────────────────────────────────────────────
+function saveCircuitTemplate(dayIdx, ctId) {
+  const day = getOrCreateWeekProgram()[dayIdx];
+  const ct = (day.circuits||[]).find(c => c.id === ctId);
+  if (!ct) return;
+  const name = ct.name.trim();
+  if (!name) { showToast('Name the circuit first, then save it'); return; }
+  if (!state.savedCircuits) state.savedCircuits = [];
+  const existing = state.savedCircuits.find(sc => sc.name.toLowerCase() === name.toLowerCase());
+  const template = {
+    id: existing ? existing.id : uid(),
+    name,
+    exercises: ct.exercises.map(ex => ({ name: ex.name, sets: ex.sets, reps: ex.reps, type: ex.type || 'strength' }))
+  };
+  if (existing) { Object.assign(existing, template); showToast(`Updated "${name}"`); }
+  else { state.savedCircuits.push(template); showToast(`Saved "${name}"`); }
+  save(state);
+}
+
+let _ctAcActive = null;
+function ctAcShow(input) {
+  if (!state.savedCircuits || !state.savedCircuits.length) return;
+  const val = input.value.trim().toLowerCase();
+  const matches = val
+    ? state.savedCircuits.filter(sc => sc.name.toLowerCase().includes(val))
+    : [...state.savedCircuits];
+  if (!matches.length) { ctAcHide(); return; }
+  _ctAcActive = { input, matches };
+  const dd = document.getElementById('ct-ac-dropdown');
+  const rect = input.getBoundingClientRect();
+  dd.style.cssText = `display:block;left:${rect.left}px;top:${rect.bottom+3}px;min-width:${Math.max(rect.width,200)}px`;
+  dd.innerHTML = matches.map((sc, i) => `
+    <div class="ct-ac-item" onmousedown="ctAcPick(${i})">
+      <span class="ct-ac-name">${escHtml(sc.name)}</span>
+      <span class="ct-ac-count">${sc.exercises.length} ex</span>
+      <span class="ct-ac-del" onmousedown="ctAcDelete(${i},event)">✕</span>
+    </div>
+  `).join('');
+}
+function ctAcHide() {
+  const dd = document.getElementById('ct-ac-dropdown');
+  if (dd) dd.style.display = 'none';
+  _ctAcActive = null;
+}
+function ctAcPick(i) {
+  if (!_ctAcActive) return;
+  const input = _ctAcActive.input;
+  const sc = _ctAcActive.matches[i];
+  ctAcHide();
+  const ctBlock = input.closest('.circuit-block');
+  if (!ctBlock) return;
+  const ctId = ctBlock.id.replace('item-ct-', '');
+  const m = (ctBlock.getAttribute('ondrop') || '').match(/dayDrop\(event,(\d+)/);
+  const dayIdx = m ? parseInt(m[1]) : -1;
+  if (dayIdx < 0) return;
+  const day = getOrCreateWeekProgram()[dayIdx];
+  const ct = (day.circuits||[]).find(c => c.id === ctId);
+  if (!ct) return;
+  ct.name = sc.name;
+  ct.exercises = sc.exercises.map(ex => ({ id: uid(), name: ex.name, sets: ex.sets, reps: ex.reps || null, type: ex.type || 'strength' }));
+  save(state); renderMain();
+}
+function ctAcDelete(i, event) {
+  event.stopPropagation();
+  if (!_ctAcActive) return;
+  const sc = _ctAcActive.matches[i];
+  state.savedCircuits = state.savedCircuits.filter(s => s.id !== sc.id);
+  save(state); ctAcHide();
+}
+document.addEventListener('click', e => {
+  const dd = document.getElementById('ct-ac-dropdown');
+  if (dd && !dd.contains(e.target) && !e.target.closest('.circuit-name-input')) ctAcHide();
+});
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 document.body.insertAdjacentHTML('beforeend',
-  '<div id="ac-dropdown"></div>'
+  '<div id="ac-dropdown"></div><div id="ct-ac-dropdown"></div>'
 );
 renderSidebar();
 renderMain();

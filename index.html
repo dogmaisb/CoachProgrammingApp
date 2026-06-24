@@ -1080,7 +1080,6 @@ function getItemOrder(day) {
 }
 let _dragInfo = null;
 function dayDragStart(event, dayIdx, kind, id) {
-  if (event.target.closest('input,select,button,textarea')) { event.preventDefault(); return; }
   _dragInfo = { dayIdx, kind, id };
   event.dataTransfer.effectAllowed = 'move';
   setTimeout(() => { const el = document.getElementById(`item-${kind}-${id}`); if (el) el.classList.add('dragging-item'); }, 0);
@@ -1974,12 +1973,12 @@ function renderDayCard(day, dayIdx) {
       const ex = (day.exercises||[]).find(e => e.id === item.id);
       if (!ex) return '';
       return `
-        <div class="ex-row" id="item-ex-${ex.id}" draggable="true"
-          ondragstart="dayDragStart(event,${dayIdx},'ex','${ex.id}')"
+        <div class="ex-row" id="item-ex-${ex.id}"
           ondragover="dayDragOver(event,${dayIdx},'ex','${ex.id}')"
-          ondrop="dayDrop(event,${dayIdx},'ex','${ex.id}')"
-          ondragend="dayDragEnd()">
-          <div class="drag-handle">⠿</div>
+          ondrop="dayDrop(event,${dayIdx},'ex','${ex.id}')">
+          <div class="drag-handle" draggable="true"
+            ondragstart="dayDragStart(event,${dayIdx},'ex','${ex.id}')"
+            ondragend="dayDragEnd()">⠿</div>
           <div class="ex-name-cell">
             <input placeholder="Exercise name" value="${escHtml(ex.name)}"
               oninput="acShow(this);updateExName(${dayIdx},'${ex.id}',this.value)"
@@ -1999,13 +1998,13 @@ function renderDayCard(day, dayIdx) {
       const blockLabel = isSuperset ? 'Superset' : 'Circuit';
       const namePh = isSuperset ? 'Superset name (optional)' : 'Circuit name (optional)';
       return `
-        <div class="circuit-block" id="item-ct-${ct.id}" draggable="true"
-          ondragstart="dayDragStart(event,${dayIdx},'ct','${ct.id}')"
+        <div class="circuit-block" id="item-ct-${ct.id}"
           ondragover="dayDragOver(event,${dayIdx},'ct','${ct.id}')"
-          ondrop="dayDrop(event,${dayIdx},'ct','${ct.id}')"
-          ondragend="dayDragEnd()">
+          ondrop="dayDrop(event,${dayIdx},'ct','${ct.id}')">
           <div class="circuit-header">
-            <div class="drag-handle" style="font-size:14px;margin-right:0">⠿</div>
+            <div class="drag-handle" draggable="true" style="font-size:14px;margin-right:0"
+              ondragstart="dayDragStart(event,${dayIdx},'ct','${ct.id}')"
+              ondragend="dayDragEnd()">⠿</div>
             <span class="circuit-label">${blockLabel}</span>
             <input class="circuit-name-input" placeholder="${namePh}"
               value="${escHtml(ct.name)}"

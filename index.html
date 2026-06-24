@@ -1222,17 +1222,21 @@ function doCopyDay(srcKey, srcDayIdx, targetDayIdx) {
 // ── Export ────────────────────────────────────────────────────────────────────
 function exportDayWorkout(day, date) {
   if (!day.exercises.length && !(day.circuits||[]).length && !day.workoutName) return null;
-  return {
-    date: fmtDate(date),
-    name: day.workoutName || day.day,
-    exercises: day.exercises
-      .filter(ex => ex.name.trim())
-      .map(ex => ({ name: ex.name.trim(), sets: ex.sets, reps: formatRepsExport(ex.reps), type: ex.type === 'max' ? 'strength' : (ex.type || 'strength') })),
-    circuits: (day.circuits || []).map(ct => ({
-      name: ct.name || 'Circuit',
-      exercises: ct.exercises.filter(ex => ex.name.trim()).map(ex => ({ name: ex.name.trim(), sets: ex.sets, reps: formatRepsExport(ex.reps), type: ex.type === 'max' ? 'strength' : (ex.type || 'strength') })),
-    })).filter(ct => ct.exercises.length),
-  };
+  const order = getItemOrder(day);
+  const fmtEx = ex => ({ name: ex.name.trim(), sets: ex.sets, reps: formatRepsExport(ex.reps), type: ex.type === 'max' ? 'strength' : (ex.type || 'strength') });
+  // Export exercises and circuits in their display order
+  const exercises = order
+    .filter(o => o.kind === 'ex')
+    .map(o => (day.exercises||[]).find(e => e.id === o.id))
+    .filter(ex => ex && ex.name.trim())
+    .map(fmtEx);
+  const circuits = order
+    .filter(o => o.kind === 'ct')
+    .map(o => (day.circuits||[]).find(c => c.id === o.id))
+    .filter(Boolean)
+    .map(ct => ({ name: ct.name || 'Circuit', exercises: ct.exercises.filter(ex => ex.name.trim()).map(fmtEx) }))
+    .filter(ct => ct.exercises.length);
+  return { date: fmtDate(date), name: day.workoutName || day.day, exercises, circuits };
 }
 
 function exportClient() {
@@ -2127,6 +2131,7 @@ function doImportJSON(data, targetClientId) {
     const resolveType = ex => ex.type || EXERCISE_TYPE_MAP[ex.name?.toLowerCase()] || 'strength';
     slot.exercises = (w.exercises || []).map(ex => ({ id: uid(), name: ex.name, sets: ex.sets, reps: ex.reps, type: resolveType(ex) }));
     slot.circuits  = (w.circuits  || []).map(ct => ({ id: uid(), name: ct.name, exercises: (ct.exercises||[]).map(ex => ({ id: uid(), name: ex.name, sets: ex.sets, reps: ex.reps, type: resolveType(ex) })) }));
+    slot.itemOrder = null; // rebuilt fresh from imported array order
     imported++;
   });
 

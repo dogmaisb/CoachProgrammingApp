@@ -73,7 +73,11 @@
     transition: all .12s;
   }
   .client-item:hover  { background: #1a2e45; }
-  .client-item.active { background: #0f2210; border-left-color: #5adb6a; color: #8aee8a; }
+  .client-item.active {
+    background: #0f2210; border-left-color: #5adb6a; color: #8aee8a;
+    box-shadow: inset 0 0 18px rgba(90,219,106,.10), 0 0 12px rgba(90,219,106,.18);
+    text-shadow: 0 0 8px rgba(138,238,138,.5);
+  }
   .client-item .del-btn {
     background: none; border: none; color: #3a5a7a; cursor: pointer;
     font-size: 14px; line-height: 1; padding: 2px 4px; border-radius: 4px;

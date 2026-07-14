@@ -1327,6 +1327,7 @@ function exportClient() {
         <select id="exp-to" style="background:#0a1828;border:1px solid #2d5a8a;color:#c8dff0;border-radius:7px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none">${opts}</select>
       </div>
     </div>
+    <div id="exp-range-label" style="text-align:center;margin-bottom:4px;font-size:13px;font-weight:600;color:#8bbdd8"></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost" onclick="closeModal()" style="flex:1">Cancel</button>
       <button class="btn btn-success" onclick="doExportRange()" style="flex:1">⬇ Export</button>
@@ -1336,6 +1337,22 @@ function exportClient() {
   // Default: from = first week, to = last week
   document.getElementById('exp-from').value = weekKeys[0];
   document.getElementById('exp-to').value   = weekKeys[weekKeys.length - 1];
+  document.getElementById('exp-from').addEventListener('change', updateExpLabel);
+  document.getElementById('exp-to').addEventListener('change', updateExpLabel);
+  updateExpLabel();
+}
+
+function updateExpLabel() {
+  const fromSel = document.getElementById('exp-from');
+  const toSel   = document.getElementById('exp-to');
+  const label   = document.getElementById('exp-range-label');
+  if (!fromSel || !toSel || !label) return;
+  const parseKey = k => { const p = k.split(' '); return new Date(parseInt(p[2]), MONTHS_SHORT.indexOf(p[0]), parseInt(p[1])).getTime(); };
+  const fromTs = parseKey(fromSel.value);
+  const toTs   = parseKey(toSel.value);
+  const weeks  = Math.round(Math.abs(toTs - fromTs) / (7 * 86400000)) + 1;
+  const word   = weeks === 1 ? 'week' : 'weeks';
+  label.innerHTML = `exporting <span style="color:#5adb6a;font-size:16px;font-weight:800;text-shadow:0 0 10px rgba(90,219,106,.8),0 0 24px rgba(90,219,106,.4)">${weeks}</span> ${word}`;
 }
 
 function doExportRange() {

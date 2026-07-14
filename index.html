@@ -1297,37 +1297,90 @@ function exportDayWorkout(day, date) {
 function exportClient() {
   const c = getClient(); if (!c) return;
 
-  // Collect all workouts across every stored week, sorted by date
+  // Collect all week keys that have content, sorted chronologically
+  const weekKeys = Object.entries(c.weekPrograms || {})
+    .filter(([, prog]) => prog.some(d => d.exercises.length || (d.circuits||[]).length || d.workoutName))
+    .map(([key]) => key)
+    .sort((a, b) => {
+      const parse = k => { const p = k.split(' '); return new Date(parseInt(p[2]), MONTHS_SHORT.indexOf(p[0]), parseInt(p[1])).getTime(); };
+      return parse(a) - parse(b);
+    });
+
+  if (!weekKeys.length) { showToast('Nothing to export yet.'); return; }
+
+  const opts = weekKeys.map(k => {
+    const p = k.split(' ');
+    const d = new Date(parseInt(p[2]), MONTHS_SHORT.indexOf(p[0]), parseInt(p[1]));
+    return `<option value="${k}">Week of ${fmtDate(d)} ${p[2]}</option>`;
+  }).join('');
+
+  openModal(`
+    <h3>Export Program</h3>
+    <p style="font-size:12px;color:#8bbdd8;margin:8px 0 16px">Choose a date range to export for <strong style="color:#c8dff0">${escHtml(c.name)}</strong>.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11px;font-weight:700;color:#4a9adc;text-transform:uppercase;letter-spacing:.06em">From</label>
+        <select id="exp-from" style="background:#0a1828;border:1px solid #2d5a8a;color:#c8dff0;border-radius:7px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none">${opts}</select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:11px;font-weight:700;color:#4a9adc;text-transform:uppercase;letter-spacing:.06em">To</label>
+        <select id="exp-to" style="background:#0a1828;border:1px solid #2d5a8a;color:#c8dff0;border-radius:7px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none">${opts}</select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="closeModal()" style="flex:1">Cancel</button>
+      <button class="btn btn-success" onclick="doExportRange()" style="flex:1">⬇ Export</button>
+    </div>
+  `);
+
+  // Default: from = first week, to = last week
+  document.getElementById('exp-from').value = weekKeys[0];
+  document.getElementById('exp-to').value   = weekKeys[weekKeys.length - 1];
+}
+
+function doExportRange() {
+  const c = getClient(); if (!c) return;
+  const fromKey = document.getElementById('exp-from').value;
+  const toKey   = document.getElementById('exp-to').value;
+
+  const parseKey = k => { const p = k.split(' '); return new Date(parseInt(p[2]), MONTHS_SHORT.indexOf(p[0]), parseInt(p[1])); };
+  const fromDate = parseKey(fromKey);
+  const toDate   = parseKey(toKey);
+
+  // Ensure from <= to
+  const winStart = Math.min(fromDate.getTime(), toDate.getTime());
+  const winEnd   = Math.max(fromDate.getTime(), toDate.getTime()) + 7 * 86400000; // inclusive through end of that week
+
   const workouts = [];
   Object.entries(c.weekPrograms || {}).forEach(([key, prog]) => {
     const parts = key.split(' ');
     const mon = new Date(parseInt(parts[2]), MONTHS_SHORT.indexOf(parts[0]), parseInt(parts[1]));
     prog.forEach((day, i) => {
       const d = new Date(mon); d.setDate(mon.getDate() + i);
+      const ts = d.getTime();
+      if (ts < winStart || ts >= winEnd) return;
       const w = exportDayWorkout(day, d);
-      if (w) workouts.push({ ...w, _ts: d.getTime() });
+      if (w) workouts.push({ ...w, _ts: ts });
     });
   });
   workouts.sort((a, b) => a._ts - b._ts);
   workouts.forEach(w => delete w._ts);
 
-  if (!workouts.length) { showToast('Nothing to export yet.'); return; }
+  closeModal();
+  if (!workouts.length) { showToast('No workouts in that range.'); return; }
 
-  const payload = {
-    _coach_export: true,
-    client: c.name,
-    exported: new Date().toISOString(),
-    workouts,
-  };
-
+  const fromLabel = fmtDate(fromDate);
+  const toLabel   = fmtDate(toDate);
+  const rangeLabel = fromKey === toKey ? fromLabel.replace(' ','-') : `${fromLabel}-to-${toLabel}`.replace(/ /g,'-');
+  const payload = { _coach_export: true, client: c.name, exported: new Date().toISOString(), workouts };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `${c.name.replace(/\s+/g,'-')}-program-full.json`;
+  a.download = `${c.name.replace(/\s+/g,'-')}-${rangeLabel}.json`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast(`✓ Exported ${workouts.length} workouts for ${c.name}!`);
+  showToast(`✓ Exported ${workouts.length} workout${workouts.length !== 1 ? 's' : ''}`);
 }
 
 // ── Progress view ────────────────────────────────────────────────────────────

@@ -798,6 +798,7 @@ function calPickDay(y, m, d) {
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function fmtDate(d) { return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`; }
+function fmtDateExport(d) { return `${MONTHS_SHORT[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`; }
 function dayDate(dayIdx) {
   const d = new Date(programWeekStart);
   d.setDate(programWeekStart.getDate() + dayIdx);
@@ -1290,7 +1291,7 @@ function exportDayWorkout(day, date) {
       if (ct && ct.exercises.filter(e => e.name.trim()).length) _order.push({ kind: 'ct', idx: ctIdx++ });
     }
   }
-  return { date: fmtDate(date), name: day.workoutName || day.day, exercises, circuits, _order };
+  return { date: fmtDateExport(date), name: day.workoutName || day.day, exercises, circuits, _order };
 }
 
 function exportClient() {

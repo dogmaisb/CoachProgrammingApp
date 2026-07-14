@@ -1031,8 +1031,9 @@ function addExercise(dayIdx) {
   const c = getClient(); if (!c) return;
   const day = getOrCreateWeekProgram()[dayIdx];
   const newEx = { id: uid(), name: '', sets: 3, reps: null, type: 'strength' };
+  const ord = getItemOrder(day); // capture order BEFORE pushing
   day.exercises.push(newEx);
-  const ord = getItemOrder(day); ord.push({ kind: 'ex', id: newEx.id }); day.itemOrder = ord;
+  ord.push({ kind: 'ex', id: newEx.id }); day.itemOrder = ord;
   save(state);
   renderMain();
 }
@@ -1086,8 +1087,9 @@ function addCircuit(dayIdx) {
   const day = getOrCreateWeekProgram()[dayIdx];
   if (!day.circuits) day.circuits = [];
   const newCt = { id: uid(), name: '', exercises: [{ id: uid(), name: '', sets: 3, reps: null, type: 'strength' }] };
+  const ord = getItemOrder(day); // capture order BEFORE pushing
   day.circuits.push(newCt);
-  const ord = getItemOrder(day); ord.push({ kind: 'ct', id: newCt.id }); day.itemOrder = ord;
+  ord.push({ kind: 'ct', id: newCt.id }); day.itemOrder = ord;
   save(state); renderMain();
 }
 function removeCircuit(dayIdx, ctId) {
@@ -1105,8 +1107,9 @@ function addSuperset(dayIdx) {
     { id: uid(), name: '', sets: 3, reps: null, type: 'strength' },
     { id: uid(), name: '', sets: 3, reps: null, type: 'strength' },
   ]};
+  const ord = getItemOrder(day); // capture order BEFORE pushing
   day.circuits.push(newCt);
-  const ord = getItemOrder(day); ord.push({ kind: 'ct', id: newCt.id }); day.itemOrder = ord;
+  ord.push({ kind: 'ct', id: newCt.id }); day.itemOrder = ord;
   save(state); renderMain();
 }
 function getItemOrder(day) {

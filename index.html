@@ -1064,14 +1064,17 @@ function updateExSets(dayIdx, exId, val) {
 
 function parseReps(val) {
   if (val === '' || val == null) return null;
-  const m = String(val).trim().match(/^(\d+)\s*e$/i);
+  const s = String(val).trim();
+  if (/^amrap$/i.test(s)) return 'AMRAP';
+  const m = s.match(/^(\d+)\s*e$/i);
   if (m) return m[1] + 'e';
-  const n = parseInt(val);
+  const n = parseInt(s);
   return isNaN(n) ? null : String(n);
 }
 
 function formatRepsExport(reps) {
   if (reps == null) return null;
+  if (/^amrap$/i.test(String(reps).trim())) return 'AMRAP';
   const m = String(reps).match(/^(\d+)e$/i);
   return m ? parseInt(m[1]) + ' each' : parseInt(reps) || null;
 }
@@ -1902,7 +1905,7 @@ document.addEventListener('mousedown', e => {
 // ── Prescription cell ─────────────────────────────────────────────────────────
 // type values match Workout Tracker: strength | bodyweight | cardio | sprint | jumprope | cycling
 const PRESC_PH = {
-  strength:   '5, 8-12',
+  strength:   '5, 8-12, AMRAP',
   max:        '1, 3, 5',
   bodyweight: '10, AMRAP',
   cardio:     '30 min, 5 mi',
